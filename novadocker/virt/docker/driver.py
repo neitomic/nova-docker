@@ -88,6 +88,9 @@ docker_opts = [
     cfg.BoolOpt('inject_key',
                 default=False,
                 help='Inject the ssh public key at boot time'),
+    cfg.BoolOpt('privileged',
+                default=False,
+                help='Enable Privileged mode (for nfs mount)'),
 ]
 
 CONF.register_opts(docker_opts, 'docker')
@@ -416,8 +419,16 @@ class DockerDriver(driver.ComputeDriver):
                          devices=None):
         binds = self._get_key_binds(container_id, instance)
         dns = self._extract_dns_entries(network_info)
+
+        env = nova_utils.instance_meta(instance)
+        priv = env.get("privileged", "False")
+        if(priv in ['True', 'true']):
+            privileged = True
+        else:
+            privileged = CONF.docker.privileged
+
         self.docker.start(container_id, binds=binds, dns=dns,
-                          devices=devices)
+                          devices=devices, privileged=privileged)
 
         if not network_info:
             return
